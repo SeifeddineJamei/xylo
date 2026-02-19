@@ -1,9 +1,5 @@
 {
+  "extends": "@vercel/remix",
   "buildCommand": "npm run build",
-  "outputDirectory": "build/server",
-  "framework": null,
-  "installCommand": "npm install",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/server" }
-  ]
+  "outputDirectory": "build/client"
 }
