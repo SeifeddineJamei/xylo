@@ -1,6 +1,12 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "build/client",
-  "framework": "remix",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "framework": null,
+  "builders": [
+    {
+      "use": "@vercel/static-build",
+      "config": {}
+    }
+  ]
 }
