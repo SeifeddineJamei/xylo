@@ -1,6 +1,9 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "build",
-  "framework": "remix",
-  "installCommand": "npm install"
+  "outputDirectory": "build/server",
+  "framework": null,
+  "installCommand": "npm install",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/server" }
+  ]
 }
