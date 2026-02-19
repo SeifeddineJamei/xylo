@@ -1,12 +1,5 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "build/client",
-  "installCommand": "npm install",
-  "framework": null,
-  "builders": [
-    {
-      "use": "@vercel/static-build",
-      "config": {}
-    }
-  ]
+  "installCommand": "npm install"
 }
