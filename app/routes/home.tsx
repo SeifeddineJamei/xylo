@@ -185,7 +185,7 @@ export default function LandingPage() {
                 className="px-10 py-5 bg-gradient-to-r from-[#FF689D] to-[#FF8A65] hover:from-[#FF8A65] hover:to-[#FF689D] text-white rounded-2xl font-semibold text-xl transition-all shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 flex items-center gap-3 mx-auto"
               >
                 <CreditCard size={28} />
-                Buy Now - $29
+                Buy Now - $9.99
               </button>
               <p className="text-gray-500 text-sm mt-4">
                 Secure payment powered by Gumroad
