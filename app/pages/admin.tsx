@@ -4,10 +4,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { Lock, Eye, EyeOff, Save, CheckCircle, AlertCircle, Upload, X, Image, Video, Type } from "lucide-react";
 
 const ADMIN_PIN = "4444";
-const GUMROAD_URL_KEY = "xylo_gumroad_url";
-const PRODUCT_IMAGE_KEY = "xylo_product_image";
-const PRODUCT_VIDEO_KEY = "xylo_product_video";
-const SALES_COPY_KEY = "xylo_sales_copy";
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -27,14 +23,16 @@ export default function AdminPage() {
     const sessionAuth = sessionStorage.getItem("xylo_admin_auth");
     if (sessionAuth === "true") {
       setIsAuthenticated(true);
-      const storedUrl = localStorage.getItem(GUMROAD_URL_KEY);
-      const storedImage = localStorage.getItem(PRODUCT_IMAGE_KEY);
-      const storedVideo = localStorage.getItem(PRODUCT_VIDEO_KEY);
-      const storedSalesCopy = localStorage.getItem(SALES_COPY_KEY);
-      if (storedUrl) setGumroadUrl(storedUrl);
-      if (storedImage) setProductImage(storedImage);
-      if (storedVideo) setProductVideo(storedVideo);
-      if (storedSalesCopy) setSalesCopy(storedSalesCopy);
+      // Fetch product from Redis API
+      fetch('/api/product')
+        .then(res => res.json())
+        .then(data => {
+          if (data.gumroadUrl) setGumroadUrl(data.gumroadUrl);
+          if (data.productImage) setProductImage(data.productImage);
+          if (data.productVideo) setProductVideo(data.productVideo);
+          if (data.salesCopy) setSalesCopy(data.salesCopy);
+        })
+        .catch(console.error);
     }
     setLoading(false);
   }, []);
@@ -46,7 +44,6 @@ export default function AdminPage() {
       reader.onloadend = () => {
         const base64 = reader.result as string;
         setProductImage(base64);
-        localStorage.setItem(PRODUCT_IMAGE_KEY, base64);
       };
       reader.readAsDataURL(file);
     }
@@ -59,26 +56,48 @@ export default function AdminPage() {
       reader.onloadend = () => {
         const base64 = reader.result as string;
         setProductVideo(base64);
-        localStorage.setItem(PRODUCT_VIDEO_KEY, base64);
       };
       reader.readAsDataURL(file);
     }
   };
 
   const handleSalesCopyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    setSalesCopy(value);
-    localStorage.setItem(SALES_COPY_KEY, value);
+    setSalesCopy(e.target.value);
+  };
+
+  // Save to Redis API
+  const saveToRedis = async () => {
+    try {
+      const formData = new FormData();
+      if (gumroadUrl) formData.append("gumroadUrl", gumroadUrl);
+      if (productImage) formData.append("productImage", productImage);
+      if (productVideo) formData.append("productVideo", productVideo);
+      if (salesCopy) formData.append("salesCopy", salesCopy);
+
+      const res = await fetch('/api/product', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (res.ok) {
+        setSaved(true);
+        setError("");
+        setTimeout(() => setSaved(false), 3000);
+      } else {
+        setError("Failed to save to database");
+      }
+    } catch (err) {
+      console.error("Error saving:", err);
+      setError("Failed to save to database");
+    }
   };
 
   const removeImage = () => {
     setProductImage("");
-    localStorage.removeItem(PRODUCT_IMAGE_KEY);
   };
 
   const removeVideo = () => {
     setProductVideo("");
-    localStorage.removeItem(PRODUCT_VIDEO_KEY);
   };
 
   const handlePinSubmit = (e: React.FormEvent) => {
@@ -103,10 +122,7 @@ export default function AdminPage() {
       setError("Please enter a valid Gumroad URL");
       return;
     }
-    localStorage.setItem(GUMROAD_URL_KEY, gumroadUrl.trim());
-    setSaved(true);
-    setError("");
-    setTimeout(() => setSaved(false), 3000);
+    saveToRedis();
   };
 
   const handleLogout = () => {
@@ -371,10 +387,10 @@ export default function AdminPage() {
                 type="url"
                 placeholder="https://example.com/video.mp4"
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                value={productVideo?.startsWith('http') ? productVideo : ''}
                 onChange={(e) => {
                   if (e.target.value) {
                     setProductVideo(e.target.value);
-                    localStorage.setItem(PRODUCT_VIDEO_KEY, e.target.value);
                   }
                 }}
               />
@@ -382,9 +398,20 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="mt-8 bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4">
+        {/* Save Button */}
+        <div className="mt-6">
+          <button
+            onClick={saveToRedis}
+            className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-[#FF689D] to-[#FF8A65] hover:from-[#FF8A65] hover:to-[#FF689D] text-white rounded-xl font-semibold transition-all"
+          >
+            <Save size={20} />
+            Save & Publish
+          </button>
+        </div>
+
+        <div className="mt-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4">
           <p className="text-indigo-300 text-sm">
-            <strong>Note:</strong> All changes are saved automatically. Users will see your sales copy, product image/video on the homepage.
+            <strong>Note:</strong> Click "Save & Publish" to save your changes. Users will see your sales copy, product image/video on the homepage from all devices.
           </p>
         </div>
 

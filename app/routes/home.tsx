@@ -4,11 +4,6 @@ import React, { useState, useEffect } from "react";
 import { CreditCard, Lock, X, Play } from "lucide-react";
 import Features from "../components/features";
 
-const GUMROAD_URL_KEY = "xylo_gumroad_url";
-const PRODUCT_IMAGE_KEY = "xylo_product_image";
-const PRODUCT_VIDEO_KEY = "xylo_product_video";
-const SALES_COPY_KEY = "xylo_sales_copy";
-
 export default function LandingPage() {
   const [gumroadUrl, setGumroadUrl] = useState<string | null>(null);
   const [productImage, setProductImage] = useState<string | null>(null);
@@ -19,15 +14,20 @@ export default function LandingPage() {
   const [showVideo, setShowVideo] = useState(false);
 
   useEffect(() => {
-    const storedUrl = localStorage.getItem(GUMROAD_URL_KEY);
-    const storedImage = localStorage.getItem(PRODUCT_IMAGE_KEY);
-    const storedVideo = localStorage.getItem(PRODUCT_VIDEO_KEY);
-    const storedSalesCopy = localStorage.getItem(SALES_COPY_KEY);
-    setGumroadUrl(storedUrl);
-    setProductImage(storedImage);
-    setProductVideo(storedVideo);
-    setSalesCopy(storedSalesCopy || "");
-    setLoading(false);
+    // Fetch product from Redis API
+    fetch('/api/product')
+      .then(res => res.json())
+      .then(data => {
+        setGumroadUrl(data.gumroadUrl || null);
+        setProductImage(data.productImage || null);
+        setProductVideo(data.productVideo || null);
+        setSalesCopy(data.salesCopy || "");
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error("Error fetching product:", error);
+        setLoading(false);
+      });
   }, []);
 
   const openPayment = () => {
