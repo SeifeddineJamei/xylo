@@ -1,14 +1,26 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { CreditCard, Lock, X, Play } from "lucide-react";
+import { CreditCard, Lock, X, Play, Star, CheckCircle, Shield, Zap, Download, HeadphonesIcon } from "lucide-react";
 import Features from "../components/features";
+
+// Testimonial type
+interface Testimonial {
+  id: string;
+  name: string;
+  review: string;
+  rating: number;
+  avatar?: string;
+  productName?: string;
+  date?: string;
+}
 
 export default function LandingPage() {
   const [gumroadUrl, setGumroadUrl] = useState<string | null>(null);
   const [productImage, setProductImage] = useState<string | null>(null);
   const [productVideo, setProductVideo] = useState<string | null>(null);
   const [salesCopy, setSalesCopy] = useState<string>("");
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
@@ -22,6 +34,7 @@ export default function LandingPage() {
         setProductImage(data.productImage || null);
         setProductVideo(data.productVideo || null);
         setSalesCopy(data.salesCopy || "");
+        setTestimonials(data.testimonials || []);
         setLoading(false);
       })
       .catch(error => {
@@ -43,10 +56,23 @@ export default function LandingPage() {
   // Build Gumroad embed URL - show product page first, then checkout
   const getGumroadEmbedUrl = () => {
     if (!gumroadUrl) return "";
-    // Use the original URL with embed=1 to show product page inline
-    // User sees the product, then clicks to buy, then checkout
     const baseUrl = gumroadUrl.includes('?') ? gumroadUrl : `${gumroadUrl}?`;
     return `${baseUrl}&embed=1`;
+  };
+
+  // Star rating component
+  const StarRating = ({ rating }: { rating: number }) => {
+    return (
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            size={18}
+            className={star <= rating ? "text-yellow-400 fill-yellow-400" : "text-gray-600"}
+          />
+        ))}
+      </div>
+    );
   };
 
   if (loading) {
@@ -74,8 +100,11 @@ export default function LandingPage() {
             <a href="#features" className="hover:text-indigo-400 transition-colors">
               Features
             </a>
-            <a href="/documentation" className="hover:text-indigo-400 transition-colors">
-              Documentation
+            <a href="#testimonials" className="hover:text-indigo-400 transition-colors">
+              Reviews
+            </a>
+            <a href="#how-it-works" className="hover:text-indigo-400 transition-colors">
+              How It Works
             </a>
             <a href="#pricing" className="hover:text-indigo-400 transition-colors">
               Pricing
@@ -102,25 +131,15 @@ export default function LandingPage() {
             v2.0 is now live
           </div>
           
-          {/* Sales Copy from Admin - Show if available */}
-          {salesCopy ? (
-            <div className="mb-6">
-              <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight leading-[1.1]">
-                {salesCopy}
-              </h1>
-            </div>
-          ) : (
-            <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight mb-6 leading-[1.1]">
-              Sell Your <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
-                Digital Products
-              </span>
+          {/* Title and Description - shows default or custom from admin */}
+          <div className="mb-6">
+            <h1 className="text-4xl md:text-6xl font-bold text-white tracking-tight leading-[1.1]">
+              {salesCopy || "Stop Overengineering. Start Earning. 🚀"}
             </h1>
-          )}
-          
-          <p className="text-lg md:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Premium digital products. Secure payments via Gumroad.
-          </p>
+            <p className="text-lg md:text-xl text-gray-400 mt-4 max-w-3xl mx-auto">
+              {salesCopy || "Are you a developer trapped in the Technician's Trap? You spend weeks optimizing code for a perfect product that never sees a single user. Maybe you're paralyzed by the fear of high backend costs before you've even made your first dollar. It's time to stop being just a Code Writer and become a Solution Provider."}
+            </p>
+          </div>
 
           {/* Product Video Display - with play button overlay */}
           {productVideo && (
@@ -177,6 +196,17 @@ export default function LandingPage() {
             </div>
           )}
 
+          {/* 5 Yellow Stars - Displayed under product and before buy button */}
+          <div className="flex items-center justify-center gap-1 mb-6">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star 
+                key={star} 
+                size={28} 
+                className="text-yellow-400 fill-yellow-400" 
+              />
+            ))}
+          </div>
+
           {/* Show Buy Button if URL is configured */}
           {gumroadUrl ? (
             <div className="mt-8">
@@ -218,7 +248,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* --- FULLSCREEN PAYMENT MODAL - Custom Header + Gumroad --- */}
+      {/* --- FULLSCREEN PAYMENT MODAL --- */}
       {showPaymentModal && gumroadUrl && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center">
           <div 
@@ -226,7 +256,6 @@ export default function LandingPage() {
             onClick={closePayment}
           />
           <div className="relative z-10 w-full h-full max-w-2xl mx-4 my-8 flex flex-col">
-            {/* Close Button */}
             <button 
               onClick={closePayment}
               className="absolute -top-12 right-0 flex items-center gap-2 px-4 py-2 text-white hover:text-red-400 transition-colors"
@@ -234,8 +263,6 @@ export default function LandingPage() {
               <X size={24} />
               <span className="text-sm">Close</span>
             </button>
-
-            {/* Custom Header - "Complete Purchase / Your digital product is ready" */}
             <div className="bg-[#111] border border-white/20 rounded-t-2xl p-8">
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-[#FF689D] to-[#FF8A65] rounded-full flex items-center justify-center mx-auto mb-4">
@@ -245,23 +272,14 @@ export default function LandingPage() {
                 <p className="text-gray-400">Your digital product is ready</p>
               </div>
             </div>
-
-            {/* Gumroad Checkout Embed */}
             <div className="flex-1 bg-white rounded-b-2xl overflow-hidden">
               <iframe
                 src={getGumroadEmbedUrl()}
-                style={{ 
-                  border: 'none', 
-                  width: '100%', 
-                  height: '500px',
-                  backgroundColor: '#ffffff'
-                }}
+                style={{ border: 'none', width: '100%', height: '500px', backgroundColor: '#ffffff' }}
                 allow="payment"
                 title="Gumroad Checkout"
               />
             </div>
-
-            {/* Helper text */}
             <div className="text-center text-gray-500 text-sm mt-4">
               Secure payment powered by Gumroad • <button onClick={closePayment} className="hover:text-white">Back to page</button>
             </div>
@@ -269,18 +287,184 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* --- SOCIAL PROOF --- */}
-      <section className="py-10 border-y border-white/5 bg-white/[0.02]">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <p className="text-sm text-gray-500 mb-8 uppercase tracking-widest font-medium">
-            Trusted by engineering teams at
-          </p>
-          <div className="flex flex-wrap justify-center gap-12 opacity-50 grayscale">
-            <span className="text-xl font-bold font-mono text-white">ACME CORP</span>
-            <span className="text-xl font-bold font-mono text-white">STRATUS</span>
-            <span className="text-xl font-bold font-mono text-white">HASHNODE</span>
-            <span className="text-xl font-bold font-mono text-white">VERCEL</span>
-            <span className="text-xl font-bold font-mono text-white">GITLAB</span>
+      {/* --- TRUST BADGES --- */}
+      <section className="py-16 px-6 bg-[#050505] border-y border-white/5">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {[
+              { icon: Shield, title: "Secure Payment", desc: "256-bit SSL encryption" },
+              { icon: Download, title: "Instant Access", desc: "Download immediately after purchase" },
+              { icon: CheckCircle, title: "30-Day Guarantee", desc: "Money-back guarantee" },
+              { icon: HeadphonesIcon, title: "24/7 Support", desc: "We're here to help anytime" }
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <item.icon size={24} className="text-indigo-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium text-sm">{item.title}</p>
+                  <p className="text-gray-500 text-xs">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* --- HOW IT WORKS --- */}
+      <section id="how-it-works" className="py-24 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              How It Works
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">
+              Get your digital product in just three simple steps
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { step: "01", title: "Browse & Select", desc: "Explore our collection of premium digital products and find the perfect one for your needs." },
+              { step: "02", title: "Secure Checkout", desc: "Complete your purchase securely through Gumroad with instant access to your product." },
+              { step: "03", title: "Download & Use", desc: "Get instant access to your files and start using them immediately. No waiting required!" }
+            ].map((item, i) => (
+              <div key={i} className="relative p-8 rounded-2xl border border-white/10 bg-white/[0.02] hover:border-indigo-500/30 transition-all group">
+                <span className="text-6xl font-bold text-white/10 absolute top-4 right-6">{item.step}</span>
+                <div className="w-14 h-14 bg-gradient-to-br from-indigo-600/20 to-purple-600/20 rounded-xl flex items-center justify-center text-indigo-400 mb-6 group-hover:scale-110 transition-transform">
+                  <Zap size={28} />
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-3">{item.title}</h3>
+                <p className="text-gray-400 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* --- ENHANCED SOCIAL PROOF --- */}
+      <section className="py-16 px-6 bg-gradient-to-b from-[#0a0a0a] to-[#111]">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8 text-center">
+            <div>
+              <div className="text-4xl md:text-5xl font-bold text-white mb-2">10,000+</div>
+              <p className="text-gray-400">Happy Customers</p>
+            </div>
+            <div>
+              <div className="text-4xl md:text-5xl font-bold text-white mb-2">4.9/5</div>
+              <p className="text-gray-400">Average Rating</p>
+            </div>
+            <div>
+              <div className="text-4xl md:text-5xl font-bold text-white mb-2">$2M+</div>
+              <p className="text-gray-400">Products Sold</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- TESTIMONIALS / REVIEWS --- */}
+      <section id="testimonials" className="py-24 px-6 bg-[#0a0a0a]">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              What Our Customers Say
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">
+              Join thousands of satisfied customers who trust us for their digital product needs
+            </p>
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star key={star} size={24} className="text-yellow-400 fill-yellow-400" />
+                ))}
+              </div>
+              <span className="text-white font-semibold ml-2">5.0 out of 5</span>
+              <span className="text-gray-500">based on {testimonials.length}+ reviews</span>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {testimonials.length > 0 ? testimonials.map((testimonial) => (
+              <div key={testimonial.id} className="p-6 rounded-2xl border border-white/10 bg-white/[0.02] hover:border-yellow-500/30 transition-all">
+                <div className="flex items-center gap-1 mb-4">
+                  <StarRating rating={testimonial.rating} />
+                </div>
+                <p className="text-gray-300 mb-6 leading-relaxed">"{testimonial.review}"</p>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                    {testimonial.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">{testimonial.name}</p>
+                    {testimonial.productName && (
+                      <p className="text-gray-500 text-sm">{testimonial.productName}</p>
+                    )}
+                  </div>
+                </div>
+                {testimonial.date && (
+                  <p className="text-gray-600 text-xs mt-3">{testimonial.date}</p>
+                )}
+              </div>
+            )) : (
+              // Fallback testimonials when none in database
+              <>
+                <div className="p-6 rounded-2xl border border-white/10 bg-white/[0.02]">
+                  <div className="flex items-center gap-1 mb-4">
+                    <StarRating rating={5} />
+                  </div>
+                  <p className="text-gray-300 mb-6 leading-relaxed">"This product exceeded my expectations! The quality is amazing and the support team is incredibly responsive. I've already recommended it to my colleagues."</p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">S</div>
+                    <div>
+                      <p className="text-white font-medium">Sarah Mitchell</p>
+                      <p className="text-gray-500 text-sm">Premium Digital Bundle</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 rounded-2xl border border-white/10 bg-white/[0.02]">
+                  <div className="flex items-center gap-1 mb-4">
+                    <StarRating rating={5} />
+                  </div>
+                  <p className="text-gray-300 mb-6 leading-relaxed">"I've purchased many digital products before, but this one stands out. The attention to detail and practical features make it worth every penny."</p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-orange-500 rounded-full flex items-center justify-center text-white font-bold">J</div>
+                    <div>
+                      <p className="text-white font-medium">James Rodriguez</p>
+                      <p className="text-gray-500 text-sm">Pro Toolkit</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 rounded-2xl border border-white/10 bg-white/[0.02]">
+                  <div className="flex items-center gap-1 mb-4">
+                    <StarRating rating={5} />
+                  </div>
+                  <p className="text-gray-300 mb-6 leading-relaxed">"Fantastic value for money! The instant download worked perfectly and the documentation is so well written. Five stars!"</p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold">E</div>
+                    <div>
+                      <p className="text-white font-medium">Emily Chen</p>
+                      <p className="text-gray-500 text-sm">Starter Pack</p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Social Proof - Companies */}
+          <div className="mt-16 pt-16 border-t border-white/5">
+            <div className="text-center mb-8">
+              <p className="text-sm text-gray-500 uppercase tracking-widest font-medium">
+                Trusted by professionals at leading companies
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-12 opacity-50 grayscale">
+              <span className="text-xl font-bold font-mono text-white">GOOGLE</span>
+              <span className="text-xl font-bold font-mono text-white">MICROSOFT</span>
+              <span className="text-xl font-bold font-mono text-white">AMAZON</span>
+              <span className="text-xl font-bold font-mono text-white">STRIPE</span>
+              <span className="text-xl font-bold font-mono text-white">NOTION</span>
+            </div>
           </div>
         </div>
       </section>
@@ -375,7 +559,6 @@ export default function LandingPage() {
             © 2026 Xylo. All rights reserved.
           </div>
           <div className="flex items-center gap-6">
-           
             <a href="/Contact-Us" className="text-gray-500 hover:text-white transition-colors text-sm">
               Contact Us
             </a>

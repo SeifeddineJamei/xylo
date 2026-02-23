@@ -10,13 +10,53 @@ const redis = new Redis({
   token: REDIS_TOKEN,
 });
 
+// Testimonial type definition
+interface Testimonial {
+  id: string;
+  name: string;
+  review: string;
+  rating: number;
+  avatar?: string;
+  productName?: string;
+  date?: string;
+}
+
 // Product type definition
 interface Product {
   gumroadUrl?: string;
   productImage?: string;
   productVideo?: string;
   salesCopy?: string;
+  testimonials?: Testimonial[];
 }
+
+// Default testimonials for initial display
+const defaultTestimonials: Testimonial[] = [
+  {
+    id: "1",
+    name: "Sarah Mitchell",
+    review: "This product exceeded my expectations! The quality is amazing and the support team is incredibly responsive. I've already recommended it to my colleagues.",
+    rating: 5,
+    productName: "Premium Digital Bundle",
+    date: "2 days ago"
+  },
+  {
+    id: "2",
+    name: "James Rodriguez",
+    review: "I've purchased many digital products before, but this one stands out. The attention to detail and practical features make it worth every penny.",
+    rating: 5,
+    productName: "Pro Toolkit",
+    date: "1 week ago"
+  },
+  {
+    id: "3",
+    name: "Emily Chen",
+    review: "Fantastic value for money! The instant download worked perfectly and the documentation is so well written. Five stars!",
+    rating: 5,
+    productName: "Starter Pack",
+    date: "3 days ago"
+  }
+];
 
 // GET endpoint - Fetch product from Redis
 export async function loader() {
@@ -28,18 +68,28 @@ export async function loader() {
         gumroadUrl: null, 
         productImage: null, 
         productVideo: null, 
-        salesCopy: "" 
+        salesCopy: "",
+        testimonials: defaultTestimonials
       });
     }
     
-    return Response.json(product);
+    // If no testimonials in Redis, use defaults
+    const testimonials = product.testimonials && product.testimonials.length > 0 
+      ? product.testimonials 
+      : defaultTestimonials;
+    
+    return Response.json({
+      ...product,
+      testimonials
+    });
   } catch (error) {
     console.error("Error fetching product:", error);
     return Response.json({ 
       gumroadUrl: null, 
       productImage: null, 
       productVideo: null, 
-      salesCopy: "" 
+      salesCopy: "",
+      testimonials: defaultTestimonials
     }, { status: 500 });
   }
 }
@@ -47,6 +97,27 @@ export async function loader() {
 // POST endpoint - Save product to Redis
 export async function action({ request }: { request: Request }) {
   try {
+    const contentType = request.headers.get("content-type");
+    
+    // Handle JSON formData
+    if (contentType?.includes("application/json")) {
+      const body = await request.json();
+      
+      const product: Product = {
+        gumroadUrl: body.gumroadUrl || undefined,
+        productImage: body.productImage || undefined,
+        productVideo: body.productVideo || undefined,
+        salesCopy: body.salesCopy || undefined,
+        testimonials: body.testimonials || undefined,
+      };
+      
+      // Save to Redis
+      await redis.set("xylo_product", product);
+      
+      return Response.json({ success: true, message: "Product saved successfully" });
+    }
+    
+    // Handle regular formData
     const formData = await request.formData();
     
     const product: Product = {
@@ -55,6 +126,16 @@ export async function action({ request }: { request: Request }) {
       productVideo: formData.get("productVideo") as string || undefined,
       salesCopy: formData.get("salesCopy") as string || undefined,
     };
+    
+    // Check if testimonials are sent as JSON string
+    const testimonialsData = formData.get("testimonials");
+    if (testimonialsData) {
+      try {
+        product.testimonials = JSON.parse(testimonialsData as string);
+      } catch (e) {
+        console.error("Error parsing testimonials:", e);
+      }
+    }
     
     // Save to Redis
     await redis.set("xylo_product", product);
