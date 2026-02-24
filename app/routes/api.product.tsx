@@ -133,18 +133,34 @@ export async function action({ request }: { request: Request }) {
   try {
     const contentType = request.headers.get("content-type");
     
+    // First, get existing product data to merge with new data
+    let existingProduct: Product = {};
+    try {
+      existingProduct = (await redis.get<Product>("xylo_product")) || {};
+    } catch (e) {
+      console.log("No existing product found, creating new one");
+    }
+    
     // Handle JSON formData
     if (contentType?.includes("application/json")) {
       const body = await request.json();
       
       const product: Product = {
-        gumroadUrl: body.gumroadUrl || undefined,
-        productImage: body.productImage || undefined,
-        productVideo: body.productVideo || undefined,
-        salesCopy: body.salesCopy || undefined,
-        testimonials: body.testimonials || undefined,
-        pricing: body.pricing || undefined,
+        // Preserve existing data if not provided in new data
+        gumroadUrl: body.gumroadUrl || existingProduct.gumroadUrl || undefined,
+        productImage: body.productImage || existingProduct.productImage || undefined,
+        productVideo: body.productVideo || existingProduct.productVideo || undefined,
+        salesCopy: body.salesCopy || existingProduct.salesCopy || undefined,
+        testimonials: body.testimonials || existingProduct.testimonials || undefined,
+        pricing: body.pricing || existingProduct.pricing || undefined,
       };
+      
+      console.log("Saving product (JSON):", { 
+        hasGumroadUrl: !!product.gumroadUrl, 
+        hasProductImage: !!product.productImage, 
+        hasProductVideo: !!product.productVideo,
+        pricing: product.pricing 
+      });
       
       // Save to Redis
       await redis.set("xylo_product", product);
@@ -156,10 +172,11 @@ export async function action({ request }: { request: Request }) {
     const formData = await request.formData();
     
     const product: Product = {
-      gumroadUrl: formData.get("gumroadUrl") as string || undefined,
-      productImage: formData.get("productImage") as string || undefined,
-      productVideo: formData.get("productVideo") as string || undefined,
-      salesCopy: formData.get("salesCopy") as string || undefined,
+      // Preserve existing data if not provided in new data
+      gumroadUrl: (formData.get("gumroadUrl") as string) || existingProduct.gumroadUrl || undefined,
+      productImage: (formData.get("productImage") as string) || existingProduct.productImage || undefined,
+      productVideo: (formData.get("productVideo") as string) || existingProduct.productVideo || undefined,
+      salesCopy: (formData.get("salesCopy") as string) || existingProduct.salesCopy || undefined,
     };
     
     // Check if testimonials are sent as JSON string
@@ -169,7 +186,10 @@ export async function action({ request }: { request: Request }) {
         product.testimonials = JSON.parse(testimonialsData as string);
       } catch (e) {
         console.error("Error parsing testimonials:", e);
+        product.testimonials = existingProduct.testimonials;
       }
+    } else {
+      product.testimonials = existingProduct.testimonials;
     }
     
     // Parse pricing data
@@ -179,8 +199,18 @@ export async function action({ request }: { request: Request }) {
         product.pricing = JSON.parse(pricingData as string);
       } catch (e) {
         console.error("Error parsing pricing:", e);
+        product.pricing = existingProduct.pricing;
       }
+    } else {
+      product.pricing = existingProduct.pricing;
     }
+    
+    console.log("Saving product (FormData):", { 
+      hasGumroadUrl: !!product.gumroadUrl, 
+      hasProductImage: !!product.productImage, 
+      hasProductVideo: !!product.productVideo,
+      pricing: product.pricing 
+    });
     
     // Save to Redis
     await redis.set("xylo_product", product);
