@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { CreditCard, Lock, X, Play, Star, CheckCircle, Shield, Zap, Download, HeadphonesIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { CreditCard, Lock, X, Play, Star, CheckCircle, Shield, Zap, Download, HeadphonesIcon, Clock, Timer, Flame } from "lucide-react";
 import Features from "../components/features";
 
 // Testimonial type
@@ -15,15 +15,94 @@ interface Testimonial {
   date?: string;
 }
 
+// Pricing type
+interface Pricing {
+  originalPrice?: number;
+  salePrice?: number;
+  couponEnabled?: boolean;
+  couponCode?: string;
+  couponExpiry?: string | null;
+}
+
+// Demo mode - set to true to test the flash sale without admin config
+const DEMO_MODE = true;
+
+// Helper function to get default expiry (24 hours from now)
+function getDefaultExpiry(): string {
+  const date = new Date();
+  date.setHours(date.getHours() + 24);
+  return date.toISOString();
+}
+
 export default function LandingPage() {
   const [gumroadUrl, setGumroadUrl] = useState<string | null>(null);
   const [productImage, setProductImage] = useState<string | null>(null);
   const [productVideo, setProductVideo] = useState<string | null>(null);
   const [salesCopy, setSalesCopy] = useState<string>("");
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  
+  const [pricing, setPricing] = useState<Pricing>({
+    originalPrice: 15,
+    salePrice: 9.99,
+    couponEnabled: DEMO_MODE, // Set to true for demo
+    couponCode: "FLASH24",
+    couponExpiry: DEMO_MODE ? getDefaultExpiry() : null
+  });
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+  const [showFlashBanner, setShowFlashBanner] = useState(true);
+  
+  // Countdown timer state
+  const [timeLeft, setTimeLeft] = useState<{hours: number; minutes: number; seconds: number}>({
+    hours: 24,
+    minutes: 0,
+    seconds: 0
+  });
+  const [isExpired, setIsExpired] = useState(false);
+
+  // Countdown timer effect
+  useEffect(() => {
+    // For demo mode or when coupon is enabled and has expiry
+    if (!pricing.couponEnabled || !pricing.couponExpiry) {
+      // Still run countdown in demo mode with a fake expiry
+      if (!DEMO_MODE) {
+        setIsExpired(true);
+        return;
+      }
+    }
+
+    const expiryDate = new Date(pricing.couponExpiry || getDefaultExpiry()).getTime();
+    
+    const calculateTimeLeft = () => {
+      const now = new Date().getTime();
+      const difference = expiryDate - now;
+
+      if (difference <= 0) {
+        setIsExpired(true);
+        return { hours: 0, minutes: 0, seconds: 0 };
+      }
+
+      return {
+        hours: Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+        minutes: Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60)),
+        seconds: Math.floor((difference % (1000 * 60)) / 1000)
+      };
+    };
+
+    setTimeLeft(calculateTimeLeft());
+    
+    const timer = setInterval(() => {
+      const newTime = calculateTimeLeft();
+      setTimeLeft(newTime);
+      if (newTime.hours === 0 && newTime.minutes === 0 && newTime.seconds === 0) {
+        setIsExpired(true);
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [pricing.couponEnabled, pricing.couponExpiry]);
 
   useEffect(() => {
     // Fetch product from Redis API
@@ -35,6 +114,19 @@ export default function LandingPage() {
         setProductVideo(data.productVideo || null);
         setSalesCopy(data.salesCopy || "");
         setTestimonials(data.testimonials || []);
+        
+        // Use API pricing if available, otherwise keep demo mode pricing
+        // Demo mode ensures flash sale always shows when DEMO_MODE = true
+        if (data.pricing && Object.keys(data.pricing).length > 0) {
+          // Check if API has coupon enabled and has expiry set
+          if (data.pricing.couponEnabled && data.pricing.couponExpiry) {
+            setPricing(data.pricing);
+          } else if (!DEMO_MODE) {
+            // Only use API pricing in non-demo mode
+            setPricing(data.pricing);
+          }
+        }
+        
         setLoading(false);
       })
       .catch(error => {
@@ -75,6 +167,12 @@ export default function LandingPage() {
     );
   };
 
+  // Format number with leading zero
+  const formatNumber = (num: number) => num.toString().padStart(2, '0');
+
+  // Check if flash sale is active and not expired
+  const isFlashSaleActive = pricing.couponEnabled && !isExpired;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
@@ -85,8 +183,35 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-gray-300 font-sans selection:bg-indigo-500/30">
+      {/* --- FLASH SALE BANNER --- */}
+      {showFlashBanner && isFlashSaleActive && (
+        <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-orange-600 via-red-500 to-orange-600 animate-pulse">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-center gap-4">
+            <div className="flex items-center gap-2 text-white">
+              <Flame size={20} className="animate-bounce" />
+              <span className="font-bold">FLASH SALE</span>
+              <span className="text-white/90">- Get {pricing.couponCode} for</span>
+              <span className="font-bold text-green-300">${pricing.salePrice?.toFixed(2)}</span>
+              <span className="text-white/80">(Save ${((pricing.originalPrice || 0) - (pricing.salePrice || 0)).toFixed(2)})</span>
+            </div>
+            <div className="flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full">
+              <Timer size={16} className="text-white" />
+              <span className="text-white font-mono font-bold">
+                {formatNumber(timeLeft.hours)}:{formatNumber(timeLeft.minutes)}:{formatNumber(timeLeft.seconds)}
+              </span>
+            </div>
+            <button 
+              onClick={() => setShowFlashBanner(false)}
+              className="absolute right-4 text-white/80 hover:text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* --- NAVIGATION --- */}
-      <nav className="fixed top-0 w-full z-50 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-md">
+      <nav className={`fixed top-0 w-full z-50 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-md ${isFlashSaleActive ? 'mt-10' : ''}`}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
@@ -210,15 +335,50 @@ export default function LandingPage() {
           {/* Show Buy Button if URL is configured */}
           {gumroadUrl ? (
             <div className="mt-8">
+              {/* Flash Sale Urgency Badge */}
+              {isFlashSaleActive && (
+                <div className="mb-4 flex items-center justify-center gap-2">
+                  <div className="flex items-center gap-1 bg-orange-500/20 border border-orange-500/40 px-3 py-1 rounded-full">
+                    <Clock size={14} className="text-orange-400" />
+                    <span className="text-orange-400 text-sm font-medium">
+                      ⚡ {formatNumber(timeLeft.hours)}h {formatNumber(timeLeft.minutes)}m {formatNumber(timeLeft.seconds)}s left!
+                    </span>
+                  </div>
+                </div>
+              )}
+              
               <button 
                 onClick={openPayment}
-                className="px-10 py-5 bg-gradient-to-r from-[#FF689D] to-[#FF8A65] hover:from-[#FF8A65] hover:to-[#FF689D] text-white rounded-2xl font-semibold text-xl transition-all shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 flex items-center gap-3 mx-auto"
+                className={`px-10 py-5 rounded-2xl font-semibold text-xl transition-all shadow-lg flex items-center gap-3 mx-auto ${
+                  isFlashSaleActive 
+                    ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white shadow-green-500/25 hover:shadow-green-500/40' 
+                    : 'bg-gradient-to-r from-[#FF689D] to-[#FF8A65] hover:from-[#FF8A65] hover:to-[#FF689D] text-white shadow-pink-500/25 hover:shadow-pink-500/40'
+                }`}
               >
                 <CreditCard size={28} />
-                Buy Now - $9.99
+                {isFlashSaleActive ? (
+                  <>
+                    <span className="line-through text-white/60 text-lg">${pricing.originalPrice?.toFixed(2)}</span>
+                    <span>Buy Now - ${pricing.salePrice?.toFixed(2)}</span>
+                  </>
+                ) : (
+                  <>Buy Now - ${pricing.salePrice?.toFixed(2)}</>
+                )}
               </button>
-              <p className="text-gray-500 text-sm mt-4">
-                Secure payment powered by Gumroad
+              
+              {/* Savings indicator */}
+              {isFlashSaleActive && (
+                <p className="text-green-400 text-sm mt-2 font-medium">
+                  🎉 You're saving ${((pricing.originalPrice || 0) - (pricing.salePrice || 0)).toFixed(2)} ({(Math.round(((pricing.originalPrice || 0) - (pricing.salePrice || 0)) / (pricing.originalPrice || 1) * 100))}% OFF!)
+                </p>
+              )}
+              
+              <p className="text-gray-500 text-sm mt-2">
+                {isFlashSaleActive ? (
+                  <>🔒 Limited time offer • Secure payment powered by Gumroad</>
+                ) : (
+                  <>Secure payment powered by Gumroad</>
+                )}
               </p>
             </div>
           ) : (

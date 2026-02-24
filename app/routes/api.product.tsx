@@ -21,6 +21,15 @@ interface Testimonial {
   date?: string;
 }
 
+// Pricing/Coupon type definition
+interface PricingConfig {
+  originalPrice?: number;      // The anchor price (e.g., $15.00)
+  salePrice?: number;          // The sale price (e.g., $9.99)
+  couponEnabled?: boolean;     // Whether flash sale is active
+  couponCode?: string;         // Coupon code for display
+  couponExpiry?: string;       // ISO date string for expiry
+}
+
 // Product type definition
 interface Product {
   gumroadUrl?: string;
@@ -28,6 +37,7 @@ interface Product {
   productVideo?: string;
   salesCopy?: string;
   testimonials?: Testimonial[];
+  pricing?: PricingConfig;
 }
 
 // Default testimonials for initial display
@@ -69,7 +79,14 @@ export async function loader() {
         productImage: null, 
         productVideo: null, 
         salesCopy: "",
-        testimonials: defaultTestimonials
+        testimonials: defaultTestimonials,
+        pricing: {
+          originalPrice: 15,
+          salePrice: 9.99,
+          couponEnabled: false,
+          couponCode: "FLASH24",
+          couponExpiry: null
+        }
       });
     }
     
@@ -78,9 +95,19 @@ export async function loader() {
       ? product.testimonials 
       : defaultTestimonials;
     
+    // Default pricing if not set
+    const pricing = product.pricing || {
+      originalPrice: 15,
+      salePrice: 9.99,
+      couponEnabled: false,
+      couponCode: "FLASH24",
+      couponExpiry: null
+    };
+    
     return Response.json({
       ...product,
-      testimonials
+      testimonials,
+      pricing
     });
   } catch (error) {
     console.error("Error fetching product:", error);
@@ -89,7 +116,14 @@ export async function loader() {
       productImage: null, 
       productVideo: null, 
       salesCopy: "",
-      testimonials: defaultTestimonials
+      testimonials: defaultTestimonials,
+      pricing: {
+        originalPrice: 15,
+        salePrice: 9.99,
+        couponEnabled: false,
+        couponCode: "FLASH24",
+        couponExpiry: null
+      }
     }, { status: 500 });
   }
 }
@@ -109,6 +143,7 @@ export async function action({ request }: { request: Request }) {
         productVideo: body.productVideo || undefined,
         salesCopy: body.salesCopy || undefined,
         testimonials: body.testimonials || undefined,
+        pricing: body.pricing || undefined,
       };
       
       // Save to Redis
@@ -134,6 +169,16 @@ export async function action({ request }: { request: Request }) {
         product.testimonials = JSON.parse(testimonialsData as string);
       } catch (e) {
         console.error("Error parsing testimonials:", e);
+      }
+    }
+    
+    // Parse pricing data
+    const pricingData = formData.get("pricing");
+    if (pricingData) {
+      try {
+        product.pricing = JSON.parse(pricingData as string);
+      } catch (e) {
+        console.error("Error parsing pricing:", e);
       }
     }
     

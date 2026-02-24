@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Lock, Eye, EyeOff, Save, CheckCircle, AlertCircle, Upload, X, Image, Video, Type } from "lucide-react";
+import { Lock, Eye, EyeOff, Save, CheckCircle, AlertCircle, Upload, X, Image, Video, Type, DollarSign, Clock, Zap } from "lucide-react";
 
 const ADMIN_PIN = "4444";
 
@@ -16,6 +16,14 @@ export default function AdminPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  
+  // Pricing state
+  const [originalPrice, setOriginalPrice] = useState<number>(15);
+  const [salePrice, setSalePrice] = useState<number>(9.99);
+  const [couponEnabled, setCouponEnabled] = useState<boolean>(false);
+  const [couponCode, setCouponCode] = useState<string>("FLASH24");
+  const [couponHours, setCouponHours] = useState<number>(24);
+  
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,6 +39,20 @@ export default function AdminPage() {
           if (data.productImage) setProductImage(data.productImage);
           if (data.productVideo) setProductVideo(data.productVideo);
           if (data.salesCopy) setSalesCopy(data.salesCopy);
+          // Load pricing config
+          if (data.pricing) {
+            if (data.pricing.originalPrice) setOriginalPrice(data.pricing.originalPrice);
+            if (data.pricing.salePrice) setSalePrice(data.pricing.salePrice);
+            if (data.pricing.couponEnabled !== undefined) setCouponEnabled(data.pricing.couponEnabled);
+            if (data.pricing.couponCode) setCouponCode(data.pricing.couponCode);
+            // Calculate hours from expiry if exists
+            if (data.pricing.couponExpiry) {
+              const expiryDate = new Date(data.pricing.couponExpiry);
+              const now = new Date();
+              const hoursLeft = Math.max(0, Math.floor((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60)));
+              setCouponHours(hoursLeft);
+            }
+          }
         })
         .catch(console.error);
     }
@@ -68,11 +90,28 @@ export default function AdminPage() {
   // Save to Redis API
   const saveToRedis = async () => {
     try {
+      // Calculate expiry date if coupon is enabled
+      let couponExpiry: string | null = null;
+      if (couponEnabled) {
+        const expiryDate = new Date();
+        expiryDate.setHours(expiryDate.getHours() + couponHours);
+        couponExpiry = expiryDate.toISOString();
+      }
+      
+      const pricing = {
+        originalPrice,
+        salePrice,
+        couponEnabled,
+        couponCode,
+        couponExpiry
+      };
+      
       const formData = new FormData();
       if (gumroadUrl) formData.append("gumroadUrl", gumroadUrl);
       if (productImage) formData.append("productImage", productImage);
       if (productVideo) formData.append("productVideo", productVideo);
       if (salesCopy) formData.append("salesCopy", salesCopy);
+      formData.append("pricing", JSON.stringify(pricing));
 
       const res = await fetch('/api/product', {
         method: 'POST',
@@ -211,6 +250,130 @@ export default function AdminPage() {
           </button>
         </div>
 
+        {/* Pricing & Flash Sale Configuration */}
+        <div className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/30 rounded-2xl p-6 mb-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+              <Zap size={20} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-white">Flash Sale & Pricing</h2>
+              <p className="text-gray-400 text-sm">Configure your exclusive offer with countdown timer</p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4 mb-4">
+            {/* Original Price (Anchor) */}
+            <div>
+              <label className="block text-gray-400 text-sm mb-2">
+                <DollarSign size={14} className="inline mr-1" />
+                Original Price (Anchor)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={originalPrice}
+                  onChange={(e) => setOriginalPrice(parseFloat(e.target.value) || 0)}
+                  className="w-full pl-8 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+                  placeholder="15.00"
+                />
+              </div>
+              <p className="text-gray-500 text-xs mt-1">This will be shown as crossed out</p>
+            </div>
+
+            {/* Sale Price */}
+            <div>
+              <label className="block text-gray-400 text-sm mb-2">
+                <DollarSign size={14} className="inline mr-1" />
+                Sale Price
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={salePrice}
+                  onChange={(e) => setSalePrice(parseFloat(e.target.value) || 0)}
+                  className="w-full pl-8 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+                  placeholder="9.99"
+                />
+              </div>
+              <p className="text-green-400 text-xs mt-1">
+                Save ${(originalPrice - salePrice).toFixed(2)} ({(Math.round((originalPrice - salePrice) / originalPrice * 100))}%)
+              </p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4 mb-4">
+            {/* Coupon Code */}
+            <div>
+              <label className="block text-gray-400 text-sm mb-2">
+                Coupon Code
+              </label>
+              <input
+                type="text"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 uppercase"
+                placeholder="FLASH24"
+              />
+            </div>
+
+            {/* Countdown Hours */}
+            <div>
+              <label className="block text-gray-400 text-sm mb-2">
+                <Clock size={14} className="inline mr-1" />
+                Flash Sale Duration (Hours)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="168"
+                value={couponHours}
+                onChange={(e) => setCouponHours(parseInt(e.target.value) || 24)}
+                className="w-full px-4 py-3 kbg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-orange-500"
+                placeholder="24"
+              />
+            </div>
+          </div>
+
+          {/* Enable Flash Sale Toggle */}
+          <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+            <div>
+              <p className="text-white font-medium">Enable Flash Sale</p>
+              <p className="text-gray-500 text-sm">Show countdown timer and urgency banner</p>
+            </div>
+            <button
+              onClick={() => setCouponEnabled(!couponEnabled)}
+              className={`relative w-14 h-8 rounded-full transition-colors ${
+                couponEnabled ? 'bg-green-500' : 'bg-gray-600'
+              }`}
+            >
+              <span
+                className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${
+                  couponEnabled ? 'translate-x-7' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Preview */}
+          <div className="mt-4 p-4 bg-black/30 rounded-xl">
+            <p className="text-gray-400 text-sm mb-2">Preview:</p>
+            <div className="flex items-center gap-3">
+              <span className="text-gray-500 line-through">${originalPrice.toFixed(2)}</span>
+              <span className="text-2xl font-bold text-green-400">${salePrice.toFixed(2)}</span>
+              {couponEnabled && (
+                <span className="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs font-medium rounded">
+                  {couponCode} - {couponHours}h left
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Sales Copy */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
           <div className="flex items-center gap-3 mb-6">
@@ -273,14 +436,6 @@ export default function AdminPage() {
                 URL saved successfully!
               </div>
             )}
-
-            <button
-              type="submit"
-              className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-[#FF689D] to-[#FF8A65] hover:from-[#FF8A65] hover:to-[#FF689D] text-white rounded-xl font-semibold transition-all"
-            >
-              <Save size={20} />
-              Save Configuration
-            </button>
           </form>
         </div>
 
@@ -405,7 +560,7 @@ export default function AdminPage() {
             className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-[#FF689D] to-[#FF8A65] hover:from-[#FF8A65] hover:to-[#FF689D] text-white rounded-xl font-semibold transition-all"
           >
             <Save size={20} />
-            Save & Publish
+            Save All Changes
           </button>
         </div>
 
