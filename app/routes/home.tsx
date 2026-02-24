@@ -186,7 +186,7 @@ export default function LandingPage() {
       {/* --- FLASH SALE BANNER --- */}
       {showFlashBanner && isFlashSaleActive && (
         <div className="fixed top-0 left-0 right-0 z-[60] bg-gradient-to-r from-orange-600 via-red-500 to-orange-600 animate-pulse">
-          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-center gap-4">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-center gap-3 flex-wrap">
             <div className="flex items-center gap-2 text-white">
               <Flame size={20} className="animate-bounce" />
               <span className="font-bold">FLASH SALE</span>
@@ -194,6 +194,17 @@ export default function LandingPage() {
               <span className="font-bold text-green-300">${pricing.salePrice?.toFixed(2)}</span>
               <span className="text-white/80">(Save ${((pricing.originalPrice || 0) - (pricing.salePrice || 0)).toFixed(2)})</span>
             </div>
+            <a 
+              href="https://t.me/+BM5_jWuT0wNhMDQ0" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 bg-[#0088cc] hover:bg-[#0099dd] text-white px-3 py-1 rounded-full text-sm font-semibold transition-all shadow-md hover:shadow-lg"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.14 10.09c-.191.897-.697 1.12-1.418.695l-3.896-2.874-1.884 1.814c-.208.208-.381.381-.783.381l.271-3.888 7.036-6.354c.304-.271-.066-.422-.417-.14l-8.71 5.506-3.749-1.167c-.813-.253-.83-.813.17-1.193l14.978-5.78c.677-.253 1.266.14 1.04 1.024z"/>
+              </svg>
+              Join Telegram for {pricing.couponCode}
+            </a>
             <div className="flex items-center gap-2 bg-black/30 px-3 py-1 rounded-full">
               <Timer size={16} className="text-white" />
               <span className="text-white font-mono font-bold">
